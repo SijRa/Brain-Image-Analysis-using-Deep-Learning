@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-from data_loader import MRI_Loader
-from callbacks import History, Scheduler
-from preprocess import Train_Test_Split
-from model import Model
+from utils.data_loader import MRI_Loader
+from utils.callbacks import History, Scheduler
+from utils.preprocess import Train_Test_Split
+from utils.model import Model
 
 import pandas as pd
 import numpy as np
