@@ -1,4 +1,4 @@
-import tensorflow-gpu as tf
+import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten, Conv3D, Dropout, MaxPooling3D
 from tensorflow.keras.metrics import categorical_crossentropy
