@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 def Train_Test_Split(data, test_size=0.3):
   dataset_size = len(data['labels'])
