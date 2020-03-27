@@ -1,8 +1,10 @@
 #!/usr/bin/env python
+from tensordash.tensordash import Tensordash
+
 from utils.data_loader import MRI_Loader
 from utils.callbacks import History, Scheduler
 from utils.preprocess import Train_Test_Split
-from utils.model import Model
+from utils.model import CNN_Model
 
 import pandas as pd
 import numpy as np
@@ -20,7 +22,7 @@ def PlotLoss():
   plt.plot(epochAxis, LossHistory.epoch_losses, label='Train Loss')
   plt.plot(epochAxis, LossHistory.epoch_val_losses, label='Test Loss')
   plt.legend()
-  plt.savefig("epoch-loss.png")
+  plt.savefig("visuals/epoch-loss2.png")
   
 def PlotAcc():
   plt.figure()
@@ -31,7 +33,7 @@ def PlotAcc():
   plt.plot(epochAxis, LossHistory.epoch_acc, label='Train Loss')
   plt.plot(epochAxis, LossHistory.epoch_val_acc, label='Test Loss')
   plt.legend()
-  plt.savefig("epoch-acc.png") 
+  plt.savefig("visuals/epoch-acc2.png") 
 
 target_width = 256  #192 #256
 target_height = 256 #192 #256
@@ -52,9 +54,7 @@ X_train, y_train, X_test, y_test = Train_Test_Split(data, test_size=0.3)
 print("TRAIN SIZE: " + str(y_train.shape[0]))
 print("TEST SIZE: " + str(y_test.shape[0]))
 
-# Multi-GPU processing
 mirrored_strategy = tf.distribute.MirroredStrategy()
-batch_size *= mirrored_strategy.num_replicas_in_sync # update batch size for multi-gpu processing
 
 print("Mirrored Devices:", mirrored_strategy.num_replicas_in_sync)
 physical_devices = tf.config.list_physical_devices('GPU') 
@@ -68,18 +68,26 @@ test_dataset = tf.data.Dataset.from_tensor_slices((X_test,y_test))
 test_dataset = test_dataset.shuffle(X_test.shape[0])
 
 train_dataset = train_dataset.batch(batch_size)
-train_dataset = train_dataset.prefetch(4)
+train_dataset = train_dataset.prefetch(2)
 test_dataset = test_dataset.batch(batch_size)
-test_dataset = test_dataset.prefetch(4)
+test_dataset = test_dataset.prefetch(2)
 
-# Generate callbacks    
+# Generate callbacks
 LossHistory = History()
+
+dashboard = Tensordash(
+ ModelName = 'CPU-CNN',
+ email = 'Sijan_Rana@hotmail.com',
+ password = 'BMsij0909')
 
 # Train model
 with mirrored_strategy.scope():
-  model = Model(target_shape=(target_width,target_height,target_depth,1), classes=num_classes, learning_rate=learning_rate)
-  model.fit(train_dataset, validation_data=(test_dataset), epochs=epochs, verbose=1, shuffle=True, use_multiprocessing=True,
-  callbacks=[LearningRateScheduler(Scheduler), EarlyStopping(monitor='val_categorical_accuracy', patience=30), LossHistory])
+  try:
+    model = CNN_Model(target_shape=(target_width,target_height,target_depth,1), classes=num_classes, learning_rate=learning_rate)
+    model.fit(train_dataset, validation_data=(test_dataset), epochs=epochs, verbose=1, shuffle=True, use_multiprocessing=True,
+    callbacks=[dashboard, LearningRateScheduler(Scheduler), EarlyStopping(monitor='val_categorical_accuracy', patience=10), LossHistory])
+  except:
+    dashboard.sendCrash() # send crash to mobile app
 
 # Generate graphs
 PlotLoss()
