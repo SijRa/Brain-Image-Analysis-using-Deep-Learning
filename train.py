@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from tensordash.tensordash import Tensordash
 
 from utils.data_loader import MRI_Loader
 from utils.callbacks import History, Scheduler
@@ -22,7 +21,7 @@ def PlotLoss():
   plt.plot(epochAxis, LossHistory.epoch_losses, label='Train Loss')
   plt.plot(epochAxis, LossHistory.epoch_val_losses, label='Test Loss')
   plt.legend()
-  plt.savefig("visuals/epoch-loss2.png")
+  plt.savefig("visuals/loss192.png")
   
 def PlotAcc():
   plt.figure()
@@ -33,16 +32,17 @@ def PlotAcc():
   plt.plot(epochAxis, LossHistory.epoch_acc, label='Train Loss')
   plt.plot(epochAxis, LossHistory.epoch_val_acc, label='Test Loss')
   plt.legend()
-  plt.savefig("visuals/epoch-acc2.png") 
+  plt.savefig("visuals/acc192.png")
 
-target_width = 256  #192 #256
-target_height = 256 #192 #256
-target_depth = 166  #160 #166
+target_width = 192  #192 #256
+target_height = 192 #192 #256
+target_depth = 160  #160 #166
 
 learning_rate=0.001
 batch_size = 4
 epochs = 60
 num_classes = 3
+dropout_rate = 0.1
 
 # Load MRI data
 mri_loader = MRI_Loader(target_shape=(target_width, target_height, target_depth), load_size=None)
@@ -75,19 +75,12 @@ test_dataset = test_dataset.prefetch(2)
 # Generate callbacks
 LossHistory = History()
 
-dashboard = Tensordash(
- ModelName = 'CPU-CNN',
- email = 'Sijan_Rana@hotmail.com',
- password = 'BMsij0909')
-
 # Train model
 with mirrored_strategy.scope():
-  try:
-    model = CNN_Model(target_shape=(target_width,target_height,target_depth,1), classes=num_classes, learning_rate=learning_rate)
-    model.fit(train_dataset, validation_data=(test_dataset), epochs=epochs, verbose=1, shuffle=True, use_multiprocessing=True,
-    callbacks=[dashboard, LearningRateScheduler(Scheduler), EarlyStopping(monitor='val_categorical_accuracy', patience=10), LossHistory])
-  except:
-    dashboard.sendCrash() # send crash to mobile app
+  model = CNN_Model(target_shape=(target_width,target_height,target_depth,1), classes=num_classes, learning_rate=learning_rate,
+  dropout_rate=dropout_rate)
+  model.fit(train_dataset, validation_data=(test_dataset), epochs=epochs, verbose=1, shuffle=True, use_multiprocessing=True,
+  callbacks=[LearningRateScheduler(Scheduler), EarlyStopping(monitor='val_categorical_accuracy', patience=10), LossHistory])
 
 # Generate graphs
 PlotLoss()

@@ -11,7 +11,7 @@ class MRI_Loader:
   
   def __init__(self, target_shape, load_size=None):
     self.mri_path = '../ADNI_volumes_customtemplate_float32/'
-    self.xls_path = '../ADNI_clinical_data'
+    self.xls_path = '../ADNI_clinical_data/'
     self.target_shape = target_shape
     self.load_size = None if load_size == None else load_size
   
