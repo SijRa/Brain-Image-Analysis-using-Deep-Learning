@@ -1,4 +1,4 @@
-# mri-analysis
-Convolutional neural network for the early prediction of progressive and stable MCI from MRI scans.
-## Achitecture
+# Multi-modal Convolutional Nerual Network
+CNN model to early predict stable and progressive MCI (high/low risk) patients using MRI and clinical data.
+## Architecture
 <img src = "MODEL.png">
