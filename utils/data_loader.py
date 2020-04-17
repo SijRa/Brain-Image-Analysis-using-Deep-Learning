@@ -11,8 +11,8 @@ from dltk.io.preprocessing import *
 class MRI_Loader:
   
   def __init__(self, target_shape, load_size=None):
-    self.mri_path = '../ADNI_volumes_custom/'
-    self.csv_path = '../ADNI_clinical_data/LP_ADNIMERGE_CLEANED.csv'
+    self.mri_path = '../ADNI_volumes/'
+    self.csv_path = '../ADNI_clinical/LP_ADNIMERGE_CLEANED.csv'
     self.target_shape = target_shape
     self.load_size = None if load_size == None else load_size
   
