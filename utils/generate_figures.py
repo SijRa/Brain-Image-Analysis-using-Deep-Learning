@@ -4,34 +4,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns; sns.set()
 
-def PlotLoss(fold, LossHistory):
-  _filename = "figures/loss" + str(fold)
+def PlotLoss(LossHistory):
+  _filename = "figures/loss"
   plt.figure()
-  title_string = "Loss - Fold " + str(fold)
-  plt.title(title_string)
-  plt.xlabel("Epoch")
+  plt.xlabel("Batch")
   plt.ylabel("Loss")
-  epochAxis = np.arange(1, LossHistory.epoch_iter + 1,1)
-  plt.plot(epochAxis, LossHistory.epoch_loss_pvs, label='Train: pMCI vs sMCI')
-  plt.plot(epochAxis, LossHistory.epoch_val_loss_pvs, label='Test: pMCI vs sMCI')
-  plt.plot(epochAxis, LossHistory.epoch_loss_risk, label='Train: HighRisk vs LowRisk')
-  plt.plot(epochAxis, LossHistory.epoch_val_loss_risk, label='Test: HighRisk vs LowRisk')
+  batchAxis = np.arange(1, LossHistory.batch_iter + 1,1)
+  plt.plot(batchAxis, LossHistory.batch_loss_pvs, label='pMCI vs sMCI')
+  plt.plot(batchAxis, LossHistory.batch_loss_risk, label='HighRisk vs LowRisk')
   plt.legend(frameon=False)
-  plt.xticks(epochAxis)
   plt.savefig(_filename + ".png")
   
-def PlotAcc(fold, LossHistory):
-  _filename = "figures/acc" + str(fold)
+def PlotAcc(LossHistory):
+  _filename = "figures/acc"
   plt.figure()
-  title_string = "Accuracy - Fold " + str(fold)
-  plt.title(title_string)
-  plt.xlabel("Epoch")
+  plt.xlabel("Batch")
   plt.ylabel("Accuracy")
-  epochAxis = np.arange(1, LossHistory.epoch_iter + 1,1)
-  plt.plot(epochAxis, LossHistory.epoch_acc_pvs, label='Train: pMCI vs sMCI')
-  plt.plot(epochAxis, LossHistory.epoch_val_acc_pvs, label='Test: pMCI vs sMCI')
-  plt.plot(epochAxis, LossHistory.epoch_acc_risk, label='Train: HighRisk vs LowRisk')
-  plt.plot(epochAxis, LossHistory.epoch_val_acc_risk, label='Test: HighRisk vs LowRisk')
-  plt.xticks(epochAxis)
+  batchAxis = np.arange(1, LossHistory.batch_iter + 1,1)
+  plt.plot(batchAxis, LossHistory.batch_acc_pvs, label='pMCI vs sMCI')
+  plt.plot(batchAxis, LossHistory.batch_acc_risk, label='HighRisk vs LowRisk')
   plt.legend(frameon=False)
   plt.savefig(_filename + ".png")

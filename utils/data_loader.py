@@ -5,13 +5,12 @@ from os import listdir
 import numpy as np
 import pandas as pd
 import nibabel as nib
-from SimpleITK import ReadImage
 from dltk.io.preprocessing import *
 
 class MRI_Loader:
   
   def __init__(self, target_shape, load_size=None):
-    self.mri_path = '../ADNI_volumes/'
+    self.mri_path = '../ADNI_baseline_normalised/'
     self.csv_path = '../ADNI_clinical/LP_ADNIMERGE_CLEANED.csv'
     self.target_shape = target_shape
     self.load_size = None if load_size == None else load_size
@@ -23,7 +22,7 @@ class MRI_Loader:
     pMCI, sMCI = 0,0
     highRisk, lowRisk = 0,0
     for _file in _list:
-      filename_arr = _file.split('_')
+      filename_arr = _file.split('_')[1:]
       if len(filename_arr) == 7:
         _class = filename_arr[5]
       else:
@@ -73,12 +72,13 @@ class MRI_Loader:
     #class_dict = {"AD":np.array([0, 0, 1]), "MCI":np.array([0, 1, 0]), "CN":np.array([1, 0, 0])}
     class_dict = {"AD":2, "MCI":1, "CN":0}
     pVs_dict = {"unstableMCI":1, "stableMCI":0}
+    #risk_dict = {"HR":np.array([0, 0, 1]), "LR":np.array([0, 1, 0]), 0:np.array([1, 0, 0])}
     risk_dict = {"HR":2, "LR":1, 0:0}
     return class_dict[_class], pVs_dict[_pVsClass], risk_dict[_riskClass]
   
   def Shape_Constraint(self, _file):
-    image_data = ReadImage(self.mri_path + _file)
-    return True if image_data.GetSize() == self.target_shape else False
+    image_data = nib.load(self.mri_path + _file).get_data().astype('float32')
+    return image_data if image_data.shape == self.target_shape else np.empty
   
   def Extract_Filename(self, _filearray):
     _idarray = _filearray[:3]
@@ -115,8 +115,10 @@ class MRI_Loader:
     filenames = filenames[:self.load_size] if self.load_size != None else filenames
     clinical_data = pd.read_csv(self.csv_path)
     for _file in filenames:
-      if self.Shape_Constraint(_file):
-        _filearray = _file.split('_')
+      # Extract MRI with target dimensions
+      image_data = self.Shape_Constraint(_file)
+      if image_data.size != 0:
+        _filearray = _file.split('_')[1:]
         _id, _date, _class, _pVsClass, _riskClass = self.Extract_Filename(_filearray)
         # Extract clinical features
         clinical_feature = self.Extract_Clinical(_id, _date, clinical_data.copy())
@@ -126,16 +128,15 @@ class MRI_Loader:
           continue
         print("LOADING MRI - " + _file)
         # Load MRI
-        image_data = nib.load(self.mri_path + _file).get_data().astype('float32')
-        normalised_data = whitening(image_data) # z-score normalisation
-        normalised_mri = np.expand_dims(normalised_data, axis=-1)
+        #normalised_data = whitening(image_data) # z-score normalisation
+        image_data = np.expand_dims(image_data, axis=-1)
         # Generate Labels
         classLabel, pVsLabel, riskLabel = self.Generate_Label(_class, _pVsClass, _riskClass)
         class_labels.append(classLabel)
         pVs_labels.append(pVsLabel)
         risk_labels.append(riskLabel)
         clinical_features.append(clinical_feature)
-        mri_features.append(normalised_mri)
+        mri_features.append(image_data)
         loaded_files.append(_file)
     self.Get_Class_Information(loaded_files, skipped_files)
     return np.asarray(mri_features), np.asarray(clinical_features), np.asarray(class_labels), np.asarray(pVs_labels), np.asarray(risk_labels)
