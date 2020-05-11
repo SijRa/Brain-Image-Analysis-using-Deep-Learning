@@ -2,26 +2,28 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns; sns.set()
 
-def PlotLoss(LossHistory):
-  _filename = "figures/loss"
-  plt.figure()
-  plt.xlabel("Batch")
-  plt.ylabel("Loss")
-  batchAxis = np.arange(1, LossHistory.batch_iter + 1,1)
-  plt.plot(batchAxis, LossHistory.batch_loss_pvs, label='pMCI vs sMCI')
-  plt.plot(batchAxis, LossHistory.batch_loss_risk, label='HighRisk vs LowRisk')
-  plt.legend(frameon=False)
-  plt.savefig(_filename + ".png")
+def PlotConversion(data):
+  ax = sns.lineplot(x=data.index, y="categorical_accuracy",
+                  data=data)
+  ax.set(xlabel="epoch", ylabel="categorical_accuracy")
+  ax.set(xticks=data.index)
   
-def PlotAcc(LossHistory):
-  _filename = "figures/acc"
-  plt.figure()
-  plt.xlabel("Batch")
-  plt.ylabel("Accuracy")
-  batchAxis = np.arange(1, LossHistory.batch_iter + 1,1)
-  plt.plot(batchAxis, LossHistory.batch_acc_pvs, label='pMCI vs sMCI')
-  plt.plot(batchAxis, LossHistory.batch_acc_risk, label='HighRisk vs LowRisk')
-  plt.legend(frameon=False)
+def PlotRisk(data):
+  ax = sns.lineplot(x=data.index, y="categorical_crossentropy",
+                  data=data)
+  ax.set(xlabel="epoch", ylabel="categorical_crossentropy")
+  ax.set(xticks=data.index)
+  
+def PlotBatchAcc(data):
+  ax = sns.lineplot(x=data.index, y="categorical_crossentropy",
+                  data=data)
+  ax.set(xlabel="epoch", ylabel="categorical_crossentropy")
+  ax.set(xticks=data.index)
+  
+def SaveFig(figname, fold):
+  _filename = "figures/" + figname
   plt.savefig(_filename + ".png")
+  plt.figure()
