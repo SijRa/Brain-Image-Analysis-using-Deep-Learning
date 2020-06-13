@@ -1,4 +1,2 @@
-# Multi-modal Convolutional Neural Network
-CNN model to early predict stable and progressive MCI (high/low risk) patients using MRI and clinical data.
-## Architecture
-<img src = "MODEL.png">
+# Brain Image Analysis using Deep Learning
+A multimodal deep learning approach to the early prediction of mild cognitive impairment conversion to Alzheimer's Disease.
