@@ -10,5 +10,7 @@ This project contains the code for the convolutional neural network - MudNet tha
   * ```model.py``` defines MudNet layers and parameters
   * ```preprocess.py``` contains data splitting and pre-processing methods (i.e. train-test split, one-hot encoding etc)
 ## Model Architecture
-<img src="figures/ArchitectureOverview.png" width="328" height="580">
+<br></br>
+<img src="figures/ArchitectureOverview.png" width="656" height="1165">
+<br></br>
 <img src="figures/ArchitectureLayers.png" width="640" height="496">
