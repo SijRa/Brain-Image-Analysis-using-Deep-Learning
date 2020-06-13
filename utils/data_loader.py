@@ -10,7 +10,7 @@ from scipy.stats import zscore
 class MRI_Loader:
   
   def __init__(self, target_shape, load_size=None):
-    self.mri_path = '../ADNI_baseline_registered_unnormalised/'
+    self.mri_path = '../ADNI_baseline_n4_registered_normalised/'
     self.csv_path = '../ADNI_clinical/LP_ADNIMERGE_CLEANED.csv'
     self.target_shape = target_shape
     self.load_size = None if load_size == None else load_size
@@ -102,7 +102,8 @@ class MRI_Loader:
   
   def Extract_Clinical(self, _id, _date, clinical_data):
     feature = np.array([])
-    patient_data = clinical_data.drop(columns=["PTID","EXAMDATE"])  
+    patient_data = clinical_data.drop(columns=["PTID","EXAMDATE"])
+    _date = _date.replace('-', '/')
     feature = np.append(feature, patient_data[(clinical_data.PTID == _id) & (clinical_data.EXAMDATE == _date)].values.flatten(), axis=0)
     return feature
     
@@ -124,6 +125,7 @@ class MRI_Loader:
         clinical_feature = self.Extract_Clinical(_id, _date, clinical_data.copy())
         if (clinical_feature.size == 0):
           print("DATA WARNING: Clinical data not found, skipping file")
+          print("\t SUBJECT ID: " + _id)
           skipped_files += 1
           continue
         print("LOADING MRI - " + _file)

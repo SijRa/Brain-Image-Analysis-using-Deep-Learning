@@ -1,72 +1,87 @@
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, Dense, Flatten, Conv3D, Dropout, MaxPooling3D, concatenate, BatchNormalization
-from tensorflow.keras.losses import categorical_crossentropy
-from tensorflow.keras.metrics import categorical_accuracy, Recall, AUC
+from tensorflow.keras.layers import Input, Dense, Flatten, Conv3D, Dropout, MaxPooling3D, concatenate, BatchNormalization, add, ELU
+from tensorflow.keras.losses import categorical_crossentropy, binary_crossentropy
+from tensorflow.keras.metrics import categorical_accuracy, Recall, AUC, binary_accuracy
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
-from tensorflow_addons.optimizers import Lookahead
 
+
+def Conv_Layer(filters, kernel_size=(3, 4, 3), kernel_regularizer=l2(0.001), dropout_rate=0.3, strides=1):
+  def f(_input):
+    conv = Conv3D(filters, kernel_size=kernel_size, kernel_regularizer=kernel_regularizer, padding='same', strides=strides)(_input)
+    norm = BatchNormalization()(conv)
+    elu = ELU()(norm)
+    dropped = Dropout(dropout_rate)(elu)
+    return MaxPooling3D(pool_size=(3, 3, 3), strides=2)(dropped)
+  return f
+  
+def Conv_ResidualLayer(filters, kernel_size=(3, 4, 3), kernel_regularizer=l2(0.001), dropout_rate=0.3, strides=1, residual=None):
+  def f(_input):
+    conv = Conv3D(filters, kernel_size=kernel_size, kernel_regularizer=kernel_regularizer, padding='same', strides=strides)(_input)
+    if (residual!=None):
+      conv = add([conv, residual])
+    norm = BatchNormalization()(conv)
+    elu = ELU()(norm)
+    return Dropout(dropout_rate)(elu)
+  return f
+  
+def Dense_Layer(units, kernel_regularizer=l2(0.001), dropout_rate=0.1):
+  def f(_input):
+    dense = Dense(units, kernel_regularizer=kernel_regularizer)(_input)
+    norm = BatchNormalization()(dense)
+    elu = ELU()(norm)
+    return Dropout(dropout_rate)(elu)
+  return f
+
+
+# sMCI vs pMCI
 def MudNet(input_shapes, output_classes, regularizer, dropout_rate, learning_rate):
   
   # Input layers
   input_mri = Input(shape=input_shapes['mri'], name='mri_features')
   input_clinical = Input(shape=input_shapes['clinical'], name='clinical_features')
   
-  # Convolutional layers (MRI)
-  convlayer_1 = Conv3D(24, kernel_size=(11, 13, 11), activation='elu', kernel_regularizer=l2(regularizer['conv']), padding='same', strides=3)(input_mri)
-  normalised_batch1 = BatchNormalization()(convlayer_1)
-  max_pool_1 = MaxPooling3D(pool_size=(3, 3, 3), strides=2)(normalised_batch1)
-  dropout_1 = Dropout(dropout_rate['conv'])(max_pool_1)
-  convlayer_2 = Conv3D(48, kernel_size=(5, 6, 5), activation='elu', kernel_regularizer=l2(regularizer['conv']), padding='same')(dropout_1)
-  normalised_batch2 = BatchNormalization()(convlayer_2)
-  max_pool_2 = MaxPooling3D(pool_size=(3, 3, 3), strides=2)(normalised_batch2)
-  dropout_2 = Dropout(dropout_rate['conv'])(max_pool_2)
-  convlayer_3 = Conv3D(96, kernel_size=(3, 4, 3), activation='elu', kernel_regularizer=l2(regularizer['conv']), padding='same')(dropout_2)
-  normalised_batch3 = BatchNormalization()(convlayer_3)
-  max_pool_3 = MaxPooling3D(pool_size=(3, 3, 3), strides=2)(normalised_batch3)
-  dropout_3 = Dropout(dropout_rate['conv'])(max_pool_3)
-  convlayer_4 = Conv3D(24, kernel_size=(3, 4, 3), activation='elu', kernel_regularizer=l2(regularizer['conv']), padding='same')(dropout_3)
-  normalised_batch4 = BatchNormalization()(convlayer_4)
-  max_pool_4 = MaxPooling3D(pool_size=(1, 1, 1), strides=2)(normalised_batch4)
-  dropout_4 = Dropout(dropout_rate['conv'])(max_pool_4)
-  convlayer_5 = Conv3D(8, kernel_size=(3, 4, 3), activation='elu', kernel_regularizer=l2(regularizer['conv']), padding='valid')(dropout_4)
-  normalised_batch5 = BatchNormalization()(convlayer_5)
-  max_pool_5 = MaxPooling3D(pool_size=(1, 1, 1), strides=2)(normalised_batch5)
+  # Convolutional Layers (MRI)
+  x = Conv_Layer(24, kernel_size=(11, 13, 11), kernel_regularizer=l2(regularizer['mri']), dropout_rate=dropout_rate['mri'], strides=4)(input_mri)
+  x = Conv_Layer(48, kernel_size=(3, 4, 3), kernel_regularizer=l2(regularizer['mri']), dropout_rate=dropout_rate['mri'])(x)
+
+  # Pre-activation and normalisation residual  
+  residual = Conv3D(96, kernel_size=(3, 4, 3), kernel_regularizer=l2(regularizer['mri']), padding='same')(x)
+  x = BatchNormalization()(residual)
+  x = ELU()(x)
+  x = Dropout(dropout_rate['mri'])(x)
+  x = Conv_ResidualLayer(96, kernel_size=(3, 4, 3), kernel_regularizer=l2(regularizer['mri']), dropout_rate=dropout_rate['mri'])(x)
+  x = Conv_ResidualLayer(96, kernel_size=(3, 4, 3), kernel_regularizer=l2(regularizer['mri']), dropout_rate=dropout_rate['mri'])(x)
+  x = Conv_ResidualLayer(96, kernel_size=(3, 4, 3), kernel_regularizer=l2(regularizer['mri']), dropout_rate=dropout_rate['mri'], residual=residual)(x)
+  
+  x = Conv_Layer(24, kernel_size=(3, 4, 3), kernel_regularizer=l2(regularizer['mri']), dropout_rate=dropout_rate['mri'])(x)
+  x = Conv_Layer(8, kernel_size=(3, 4, 3), kernel_regularizer=l2(regularizer['mri']), dropout_rate=dropout_rate['mri'])(x)
   
   # Flattened layer
-  mri_dense = Flatten()(max_pool_5)
+  mri_dense = Flatten()(x)
   
-  # Dense layers (Clinical) 
-  denselayer_1 = Dense(20, activation='elu', kernel_regularizer=l2(regularizer['clinical']))(input_clinical)
-  normaliseddense_1 = BatchNormalization()(denselayer_1) 
-  dropoutdense_1 = Dropout(dropout_rate['fc'])(normaliseddense_1)
-  denselayer_2 = Dense(20, activation='elu', kernel_regularizer=l2(regularizer['clinical']))(dropoutdense_1)
-  normaliseddense_2 = BatchNormalization()(denselayer_2)
-  dropoutdense_2 = Dropout(dropout_rate['fc'])(normaliseddense_2)
-  denselayer_3 = Dense(10, activation='elu', kernel_regularizer=l2(regularizer['clinical']))(dropoutdense_2)
-  normaliseddense_3 = BatchNormalization()(denselayer_3)
-  clinical_dense = Dropout(dropout_rate['fc'])(normaliseddense_3)
+  # Dense layers (Clinical)
+  x = Dense_Layer(20, kernel_regularizer=l2(regularizer['clinical']), dropout_rate=dropout_rate['clinical'])(input_clinical)
+  x = Dense_Layer(20, kernel_regularizer=l2(regularizer['clinical']), dropout_rate=dropout_rate['clinical'])(x)
+  clinical_dense = Dense_Layer(10, kernel_regularizer=l2(regularizer['clinical']), dropout_rate=dropout_rate['clinical'])(x) 
   
   # Mixed layer
   mixed_layer = concatenate([mri_dense, clinical_dense])
+  output = Dense_Layer(4, kernel_regularizer=l2(regularizer['fc']), dropout_rate=dropout_rate['clinical'])(mixed_layer)
   
-  dense_fc = Dense(5, activation='elu', kernel_regularizer=l2(regularizer['fc']))(mixed_layer)
-  final = BatchNormalization()(dense_fc)
-  
-  # Output layer
-  output_conversion = Dense(output_classes['conversion'], activation='softmax', name='Conversion')(final)
-  output_risk = Dense(output_classes['risk'], activation='softmax', name='Risk')(final)
+  # Output layers
+  output_conversion = Dense(output_classes['conversion'], activation='sigmoid', name='Conversion')(output)
+  output_risk = Dense(output_classes['risk'], activation='softmax', name='Risk')(output)
   
   # Model compilation
   model = Model(inputs=[input_mri, input_clinical], outputs=[output_conversion, output_risk], name="MudNet")
   optimizer = Adam(learning_rate)
-  optimizer = Lookahead(optimizer)
   model.compile(
     loss={
-    'Conversion':categorical_crossentropy,
+    'Conversion':binary_crossentropy,
     'Risk':categorical_crossentropy},
     optimizer=optimizer,
     metrics={
-    'Conversion':[categorical_accuracy],
-    'Risk':[categorical_accuracy]})
+    'Conversion':[binary_accuracy, AUC(), Recall()],
+    'Risk':[categorical_accuracy, AUC(), Recall()]})
   return model
