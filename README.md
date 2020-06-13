@@ -20,7 +20,6 @@ This repository contains the code for the convolutional neural network - MudNet 
 <br></br>
 <img src="figures/ArchitectureOverview.png" width="656" height="1165">
 <br></br>
-<br></br>
 <img src="figures/ArchitectureLayers.png" width="640" height="496">
 ## Results
 <img src="figures/conversion_boxplot.svg" width="400" height="500"> <img src="figures/risk_boxplot.svg" width="400" height="500">
