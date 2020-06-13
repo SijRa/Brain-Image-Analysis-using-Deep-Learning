@@ -1,6 +1,6 @@
 ## Brain Image Analysis using Deep Learning
 A multimodal deep learning approach to the early prediction of mild cognitive impairment conversion to Alzheimer's Disease.
-## Dissertation Abstract
+## Abstract
 Mild cognitive impairment (MCI) is the intermediary stage before Alzheimer’s Disease – many patients however remain stable or even revert back to normal cognition. Early detection of progressive MCI (pMCI) therefore can be utilised in identifying at-risk individuals and directing additional medical treatment in order to reduce or even prevent the conversion to AD.
 
 This dissertation presents a 3D convolutional neural network – MudNet, to utilise deep learning in the early detection of pMCI patients while simultaneously predicting their time-to-AD class. Predictions for progressive/stable MCI classes as well as time-to-AD are made with risk classifications where high-risk pMCI patients see conversion to AD within 24 months and low-risk patients greater than 24 months.
