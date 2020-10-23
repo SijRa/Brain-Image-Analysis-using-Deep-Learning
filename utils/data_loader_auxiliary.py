@@ -10,7 +10,7 @@ from scipy.stats import zscore
 class MRI_Loader:
   
   def __init__(self, target_shape, load_size=None):
-    self.mri_path = '../ADNI_baseline_n4_registered_normalised/'
+    self.mri_path = '../AD_NL_Final/'
     self.csv_path = '../ADNI_clinical/LP_ADNIMERGE_CLEANED.csv'
     self.target_shape = target_shape
     self.load_size = None if load_size == None else load_size
@@ -18,47 +18,19 @@ class MRI_Loader:
   def Get_Class_Information(self, _list, skipped_files):
     print("\n--- CLASS BALANCE ---")
     num_files = len(_list)
-    AD, MCI, CN = 0,0,0
-    pMCI, sMCI = 0,0
-    highRisk, lowRisk = 0,0
-    for _file in _list:
-      file_ = "_"
-      filename_arr = _file.split('_')
-      if len(filename_arr) == 7:
-        _class = filename_arr[5]
-      else:
-        _class = filename_arr[4]
+    AD, CN = 0, 0
+    for _class in _list:
       if _class == "AD":
         AD += 1
-      elif _class == "MCI":
-        MCI += 1
       elif _class == "CN":
         CN += 1
       else:
         print(_class)
         print("DATA ERROR: Incorrect class")
         exit()
-      _conversionClass = filename_arr[3]
-      if _conversionClass == 'unstableMCI':
-        pMCI += 1
-        if filename_arr[4] == 'HR':
-          highRisk += 1
-        elif filename_arr[4] == 'LR':
-          lowRisk += 1
-      elif _conversionClass == 'stableMCI':
-        sMCI += 1
-      else:
-        print(_conversionClass)
-        print("DATA ERROR: Incorrect Format")
-        exit()
     print("AD: " + str(AD) + "\n" + str(AD*100/num_files) + "%")
-    print("MCI: " + str(MCI) + "\n" + str(MCI*100/num_files) + "%")
     print("CN: " + str(CN) + "\n" + str(CN*100/num_files) + "%\n")
-    print("pMCI: " + str(pMCI) + "\n" + str(pMCI*100/num_files) + "%")
-    print("High Risk (pMCI): " + str(highRisk) + "\n" + str(highRisk*100/pMCI)+ "%")
-    print("Low Risk (pMCI): " + str(lowRisk) + "\n" + str(lowRisk*100/pMCI)+ "%\n")
-    print("sMCI: " + str(sMCI) + "\n" + str(sMCI*100/num_files) + "%\n")
-    print("Skipped Files:",skipped_files)
+    print("Skipped Files:", skipped_files)
   
   def Shuffle_List(self, _list):
     if any(_list):
@@ -69,12 +41,9 @@ class MRI_Loader:
     self.Shuffle_List(file_names)
     return file_names
   
-  def Generate_Label(self, _class, _conversionClass, _riskClass):
-    # Uncoded labels
-    class_dict = {"AD":2, "MCI":1, "CN":0}
-    conversion_dict = {"unstableMCI":1, "stableMCI":0, "stableNL": 0, "stableAD": 1}
-    risk_dict = {"HR":2, "LR":1, 0:0}
-    return class_dict[_class], conversion_dict[_conversionClass], risk_dict[_riskClass]
+  def Generate_Label(self, _class):
+    class_dict = {"CN":0, "AD":1}
+    return class_dict[_class]
   
   def Shape_Constraint(self, _file):
     image_data = nib.load(self.mri_path + _file).get_data().astype('float32')
@@ -84,21 +53,11 @@ class MRI_Loader:
     _idarray = _filearray[:3]
     _id = "_"
     _id = _id.join(_idarray)
-    _conversionClass = _filearray[3]
-    _riskClass = 0 
     _class = None
     _date = None
-    if len(_filearray) == 7:
-        ## pMCI
-        _riskClass = _filearray[4]
-        _class = _filearray[5]
-        _date = _filearray[6].split('.')[0]
-    elif len(_filearray) == 6:
-        ##sMCI
-        _riskClass = 0
-        _class = _filearray[4]
-        _date = _filearray[5].split('.')[0]
-    return _id, _date, _class, _conversionClass, _riskClass
+    _class = _filearray[4]
+    _date = _filearray[5].split('.')[0]
+    return _id, _date, _class
   
   def Extract_Clinical(self, _id, _date, clinical_data):
     feature = np.array([])
@@ -109,7 +68,7 @@ class MRI_Loader:
     
   def Extract_Data(self, filenames):
     mri_features, clinical_features = [],[]
-    class_labels, conversion_labels, risk_labels = [],[],[]
+    class_labels = []
     loaded_files = []
     skipped_files = 0
     print("\n--- COLLECTING MRI ---")
@@ -120,7 +79,7 @@ class MRI_Loader:
       image_data = self.Shape_Constraint(_file)
       if image_data.size != 0:
         _filearray = _file.split('_')
-        _id, _date, _class, _conversionClass, _riskClass = self.Extract_Filename(_filearray)
+        _id, _date, _class = self.Extract_Filename(_filearray)
         # Extract clinical features
         clinical_feature = self.Extract_Clinical(_id, _date, clinical_data.copy())
         if (clinical_feature.size == 0):
@@ -133,24 +92,20 @@ class MRI_Loader:
         image_data = zscore(image_data, axis=None) # z-score normalisation
         image_data = np.expand_dims(image_data, axis=-1)
         # Generate Labels
-        classLabel, conversionLabel, riskLabel = self.Generate_Label(_class, _conversionClass, _riskClass)
+        classLabel = self.Generate_Label(_class)
         class_labels.append(classLabel)
-        conversion_labels.append(conversionLabel)
-        risk_labels.append(riskLabel)
         clinical_features.append(clinical_feature)
         mri_features.append(image_data)
-        loaded_files.append(_file)
+        loaded_files.append(_class)
     self.Get_Class_Information(loaded_files, skipped_files)
-    return np.asarray(mri_features), np.asarray(clinical_features), np.asarray(class_labels), np.asarray(conversion_labels), np.asarray(risk_labels)
+    return np.asarray(mri_features), np.asarray(clinical_features), np.asarray(class_labels)
       
   def Load_Data(self):
     features = {'mri':[], 'clinical':[]}
-    labels = {'class':[], 'conversion':[], 'risk':[]}
+    labels = {'class':[]}
     filenames = self.Get_Filenames()
-    mri_features, clinical_features, class_labels, conversion_labels, risk_labels = self.Extract_Data(filenames)
+    mri_features, clinical_features, class_labels = self.Extract_Data(filenames)
     features['mri'] = mri_features
     features['clinical'] = clinical_features
     labels['class'] = class_labels
-    labels['conversion'] = conversion_labels
-    labels['risk'] = risk_labels
     return features, labels

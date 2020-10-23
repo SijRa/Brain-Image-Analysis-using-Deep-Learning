@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#SBATCH -J Registration     # Job name, you can change it to whatever you want
+#SBATCH -o Registration.out # Standard output will be written here
+#SBATCH -e Registration.err # Standard error will be written here
+#SBATCH -p compute          # Slurm partition, where you want the job to be queued 
+#SBATCH --exclusive         # Request exclusive access to a node (all 28 cores, 128GB of RAM) 
+#SBATCH --time=0-04:00:00   # run for 60 minutes
+
+module purge
+
+module load gcc/7.3.0
+module load python/anaconda/4.3.31/3.6-VE
+
+source activate /home/554282/.conda/envs/mri_analysis
+python /home/554282/Deep-Learning-Brain-Image-Analysis/register.py

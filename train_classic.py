@@ -3,15 +3,15 @@
 import time
 
 from utils.data_loader import MRI_Loader
-from utils.callbacks import Metrics_Conversion_Risk, LR_Plateau
+from utils.callbacks import Metrics, LR_Plateau
 from utils.preprocess import Stratified_KFolds_Generator, Train_Test_Split, One_Hot_Encode
-from utils.models import MudNet
-from utils.plot_metrics import plot_metrics
+from utils.model import MudNet_Classic
 
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import EarlyStopping
 
-from sklearn.utils.class_weight import compute_class_weight
+from tensorflow.math import confusion_matrix
 
 import numpy as np
 import pandas as pd
@@ -24,7 +24,7 @@ for gpu in physical_devices:
   tf.config.experimental.set_memory_growth(gpu, True)
 
 # Data parameters
-iterations = 1
+iterations = 10
 target_width = 197
 target_height = 233
 target_depth = 189
@@ -36,11 +36,11 @@ test_size = 0.2
 
 # Model parameters
 epochs = 100
-learning_rate = 0.047
+learning_rate = 0.05
 batch_size = 20
 prefetch_size = batch_size
-dropout_rate = {'mri':0.06,'clinical':0.17}
-regularizer = {'mri':0.028,'clinical':0.028,'fc':0.028}
+dropout_rate = {'mri':0.5,'clinical':0.1}
+regularizer = {'mri':0.005,'clinical':0.005,'fc':0.005}
 
 # Load MRI data
 mri_loader = MRI_Loader(target_shape=(target_width,target_height,target_depth), load_size=limit_size)
@@ -51,73 +51,68 @@ dataset_size = len(labels['conversion'])
 print("\n--- DATASET INFORMATION ---")
 print("DATASET SIZE: " + str(dataset_size))
 
-strategy = tf.distribute.MirroredStrategy()
 
-metrics_dict = None
-epoch = None
+# selective GPUs: devices=['/gpu:1','/gpu:2','/gpu:3']
+strategy = tf.distribute.MirroredStrategy(devices=['/gpu:1','/gpu:2','/gpu:3'])
+
 
 train_times = []
+
+test_conversion = []
+test_conversion_auc = []
+test_conversion_recall = []
+
 
 with strategy.scope():
   # Training iterations
   for i in range(iterations):
     # Model definition
-    model = MudNet(features_shape_dict, output_class_dict, regularizer, dropout_rate, learning_rate)
+    model = MudNetClassic(features_shape_dict, output_class_dict, regularizer, dropout_rate, learning_rate)
     # Display model info
     if (i == 0):
       print("\n--- MODEL INFORMATION ---")
       print(model.summary())
-      
-    print("\n--- ITERATION " + str(i) + " ---")
     
     # Generate callbacks
-    Record_Metrics = Metrics_Conversion_Risk()
+    Record_Metrics = Metrics()
     Plateau_Decay = LR_Plateau(factor=0.1, patience=2)
     callbacks_inital = [EarlyStopping(monitor='val_loss', patience=15), Plateau_Decay, Record_Metrics]
     
-    #conversion_class_weights = compute_class_weight('balanced', np.unique(labels['conversion']), labels['conversion'])
-    #risk_class_weights = compute_class_weight('balanced', np.unique(labels['risk']), labels['risk'])
-    
     # Create split training/test dataset
-    mri_train, mri_test, clinical_train, clinical_test, conversion_train, conversion_test, risk_train, risk_test = Train_Test_Split(features, labels, test_size)
-    
-    # One-Hot Encoding
-    encoded_train_risk = One_Hot_Encode(risk_train, output_class_dict['risk'])
-    encoded_test_risk = One_Hot_Encode(risk_test, output_class_dict['risk'])
+    mri_train, mri_test, clinical_train, clinical_test, conversion_train, conversion_test, risk_train, risk_test = Train_Test_Split(features, labels, test_size, stratify='conversion')
     
     # Create tf.data train/test dataset
     train_dataset = tf.data.Dataset.from_tensor_slices(({'mri_features':mri_train, 'clinical_features':clinical_train},
-    {'Conversion':conversion_train,'Risk':encoded_train_risk}))
+    {'Conversion':conversion_train}))
     train_dataset = train_dataset.batch(batch_size)
     train_dataset = train_dataset.prefetch(prefetch_size)
     test_dataset = tf.data.Dataset.from_tensor_slices(({'mri_features':mri_test, 'clinical_features':clinical_test},
-    {'Conversion':conversion_test,'Risk':encoded_test_risk}))
+    {'Conversion':conversion_test}))
     test_dataset = test_dataset.batch(batch_size)
     test_dataset = test_dataset.prefetch(prefetch_size)
+    
+    print("\n --- ITERATION " + str(i+1) + " ---")
     
     # Timer
     start = time.time()
     # Training
-    results = model.fit(train_dataset, epochs=epochs, validation_data=test_dataset, verbose=1, shuffle=True, use_multiprocessing=True, callbacks=callbacks_inital)
-    #class_weight={'Conversion': {0: conversion_class_weights[0], 1:conversion_class_weights[1]}, 'Risk': {0:risk_class_weights[0], 1:risk_class_weights[1], 
-    #  2:risk_class_weights[2]}})
+    model.fit(train_dataset, epochs=epochs, validation_data=test_dataset, verbose=1, shuffle=True, use_multiprocessing=True, callbacks=callbacks_inital)
     end = time.time()  
+
+    test_conversion.append(Record_Metrics.val_acc_conversion[-1])
+    test_conversion_auc.append(Record_Metrics.val_auc_conversion[-1])
+    test_conversion_recall.append(Record_Metrics.val_recall_conversion[-1])
     
     train_time = (end-start)/60
     print("Total training time: " + str(train_time) + " min")
     train_times.append(train_time)
-    
-    metrics_dict = results.history
-    epoch = results.epoch
 
 print("\n --- FINAL TEST RESULTS ---")
 print("Final avg. training time:", np.mean(np.asarray(train_times)))
 print()
-print("Conversion: " + str(metrics_dict['val_Conversion_binary_accuracy']) + "\tRisk: " + str(metrics_dict['val_Risk_categorical_accuracy']))
+for i in range(len(test_conversion)):
+  print("Conversion: " + str(test_conversion[i]) + "\tAUC: " + str(test_conversion_auc[i])+ "\tRecall: " + 
+  str(test_conversion_recall[i]))
 print()
-print("Conversion Accuracy:", metrics_dict['val_Conversion_binary_accuracy'])
-print("Risk Accuracy:", metrics_dict['val_Risk_categorical_accuracy'])
+print("Conversion Accuracy:",np.mean(np.asarray(test_conversion)))
 print()
-
-# plot metrics
-plot_metrics(metrics_dict, epoch)
