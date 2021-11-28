@@ -15,7 +15,7 @@ This repository contains the code for the convolutional neural network - MudNet 
   * ```callbacks.py``` extracts model metrics
   * ```data_loader.py``` loads and prepares structural MRI and clinical data
   * ```model.py``` defines MudNet layers and parameters
-  * ```preprocess.py``` contains data splitting and pre-processing methods (i.e. train-test split, one-hot encoding etc)
+  * ```preprocess.py``` contains data splitting and pre-processing methods (e.g. train-test split, one-hot encoding etc)
 ## Model Architecture
 <br></br>
 <img src="figures/ArchitectureOverview.png" width="656" height="1165">
