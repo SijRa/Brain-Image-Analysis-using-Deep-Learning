@@ -1,5 +1,5 @@
 ## Brain Image Analysis using Deep Learning
-A multimodal deep learning approach to the early prediction of mild cognitive impairment conversion to Alzheimer's Disease.
+A multimodal deep learning approach to the early prediction of mild cognitive impairment conversion to Alzheimer's Disease. S Rana et al. https://ieeexplore.ieee.org/document/9302550
 ## Abstract
 Mild cognitive impairment (MCI) is the intermediary stage before Alzheimer’s Disease – many patients however remain stable or even revert back to normal cognition. Early detection of progressive MCI (pMCI) therefore can be utilised in identifying at-risk individuals and directing additional medical treatment in order to reduce or even prevent the conversion to AD.
 
